@@ -42,7 +42,7 @@ class LLaMA:
         model_args.vocab_size = tokenizer.vocab_size()
 
         if device == 'cuda':
-            torch.set_default_tensor_type(torch.cuda.HalfTensor)
+            torch.set_default_tensor_type(torch.cuda.FloatTensor)
         else:
             torch.set_default_tensor_type(torch.BFloat16Tensor)
         
@@ -80,7 +80,7 @@ class LLaMA:
         prompt_tokens_mask = tokens != pad_id # True if the token is a prompt token, False otherwise
         for cur_pos in tqdm(range(1, total_len), desc='Generating tokens'):
             with torch.no_grad():
-                logits = self.model.forward(prompt_tokens[:, cur_pos - 1:cur_pos], cur_pos)
+                logits = self.model.forward(tokens[:, cur_pos - 1:cur_pos], cur_pos)
             if temperature > 0:
                 probs = torch.softmax(logits[:, -1] / temperature, dim = -1)
                 next_token = self._sample_top_p(probs, top_p)
@@ -126,13 +126,28 @@ if __name__ == '__main__':
     allow_cuda = True
     device = 'cuda' if torch.cuda.is_available() and allow_cuda else 'cpu'
 
-    prompts = []
+    prompts = [
+        "Simply put, the theory of relativity states that ",
+        "If Google was an Italian company founded in Milan, it would",
+        # Few shot promt
+        """Translate English to French:
+        
+        sea otter => loutre de mer
+        peppermint => menthe poivrée
+        plush girafe => girafe peluche
+        cheese =>""",
+        # Zero shot prompt
+        """Tell me if the following person is actually Doraemon disguised as human:
+        Name: Umar Jamil
+        Decision: 
+        """
+    ]
     
     model = LLaMA.build(
         checkpoints_dir='checkpoints/Llama-2-7b/',
         load_model=True,
         max_seq_len=1024,
-        max_batch_size=3,
+        max_batch_size=len(prompts),
         device=device
     )
 

@@ -146,7 +146,7 @@ class SelfAttention(nn.Module):
         scores = F.softmax(scores.float(), dim=-1).type_as(xq)
 
         # (B, H_Q, 1, head_dim)
-        ouput = torch.matmul(scores, values)
+        output = torch.matmul(scores, values)
 
         # Finally we concatenate the ouputs of all the attention heads
         # (B, H_Q, 1, head_dim) -> (B, 1, H_Q, head_dim) -> (B, 1, dim)

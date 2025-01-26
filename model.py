@@ -13,7 +13,7 @@ class ModelArgs:
     n_kv_heads: Optional[int] = None # Number of heads for K and V
     vocab_size: int = -1 # depends on the tokenizer
     multiple_of: int = 256
-    ffn_dim_multiplire: Optional[float] = None
+    ffn_dim_multiplier: Optional[float] = None
     norm_eps: float = 1e-5
 
     # Neede for KV cache
@@ -98,8 +98,8 @@ class SelfAttention(nn.Module):
         self.wv = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias = False)
         self.wo = nn.Linear(args.n_heads * self.head_dim, args.dim, bias=False)
         
-        self.cache_k = torch.zeros(args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim)
-        self.cache_v = torch.zeros(args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim)
+        self.cache_k = torch.zeros((args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim))
+        self.cache_v = torch.zeros((args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim))
 
     def forward(self, x: torch.Tensor, start_pos: int, freqs_complex: torch.Tensor):
         # extract the dimensions
@@ -143,7 +143,7 @@ class SelfAttention(nn.Module):
 
         # (B, H_Q, 1, seq_len_kv)
         scores = torch.matmul(xq, keys.transpose(2, 3)) / math.sqrt(self.head_dim)
-        scores = F.softmax(scores, dim=-1).type_as(xq)
+        scores = F.softmax(scores.float(), dim=-1).type_as(xq)
 
         # (B, H_Q, 1, head_dim)
         ouput = torch.matmul(scores, values)
@@ -160,10 +160,10 @@ class FeedForward(nn.Module):
 
         hidden_dim = 4 * args.dim
         hidden_dim = int(2 * hidden_dim / 3)
-        if args.ffn_dim_multiplire is not None:
-            hidden_dim = int(args.ffn_dim_multiplire * hidden_dim)
+        if args.ffn_dim_multiplier is not None:
+            hidden_dim = int(args.ffn_dim_multiplier * hidden_dim)
         # round the hidden dim to the nearest multiple of the multiple_of parameter
-        hidden_dim =  args.multiple_of * ((hidden_dim * args.multiple_of - 1) // args.multiple_of)
+        hidden_dim =  args.multiple_of * ((hidden_dim + args.multiple_of - 1) // args.multiple_of)
 
         self.w1 = nn.Linear(args.dim, hidden_dim, bias = False)
         self.w2 = nn.Linear(hidden_dim, args.dim, bias=False)
@@ -196,8 +196,8 @@ class EncoderBlock(nn.Module):
     
     def forward(self, x: torch.Tensor, start_pos: int, freqs_complex: torch.Tensor):
         # (B, seq_len, dim) + (B, seq_len, dim) -> (B, seq_len, dim)
-        h = x + self.attention(self.attention_norm(x), start_pos, freqs_complex) # TODO: verify if this implementation is right. In the lecture self.attention.forward() method is called instead
-        out = h + self.feed_forward(self.ffn_norm(x))
+        h = x + self.attention.forward(self.attention_norm(x), start_pos, freqs_complex) # TODO: verify if this implementation is right. In the lecture self.attention.forward() method is called instead
+        out = h + self.feed_forward.forward(self.ffn_norm(x))
         return out
 
 class Transformer(nn.Module):

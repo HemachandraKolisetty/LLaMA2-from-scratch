@@ -23,7 +23,7 @@ class LLaMA:
             assert len(checkpoints) > 0, 'No checkpoint files found'
             chk_path = checkpoints[0]
             print(f'Loading checkpoint {chk_path}')
-            checkpoint = torch.load(chk_path, map_location='cuda:0' if device == 'cuda' else 'cpu')
+            checkpoint = torch.load(chk_path, map_location=device)
             print(f'Loaded checkpoint in {(time.time() - prev_time):.2f}s')
             prev_time = time.time()
 
@@ -38,7 +38,7 @@ class LLaMA:
         )
 
         tokenizer = SentencePieceProcessor()
-        tokenizer.Load(f'{checkpoints_dir}/tokenizer.model')
+        tokenizer.load(f'{checkpoints_dir}/tokenizer.model')
         model_args.vocab_size = tokenizer.vocab_size()
 
         if device == 'cuda':
@@ -58,11 +58,11 @@ class LLaMA:
 if __name__ == '__main__':
     torch.manual_seed(9)
 
-    allow_cuda = False
+    allow_cuda = True
     device = 'cuda' if torch.cuda.is_available() and allow_cuda else 'cpu'
 
     model = LLaMA.build(
-        checkpoints_dir='Llama-2-7b/',
+        checkpoints_dir='checkpoints/Llama-2-7b/',
         load_model=True,
         max_seq_len=1024,
         max_batch_size=3,
